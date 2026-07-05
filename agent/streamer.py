@@ -1,6 +1,8 @@
 import asyncio
 import logging
+import secrets
 import httpx
+from uuid_extensions import uuid7
 from shared.schemas import EventBatch
 from agent.config import GATEWAY_ENDPOINT
 from agent.batching import BatchBuffer
@@ -21,11 +23,15 @@ class HTTPStreamer:
             logger.info("dry-run batch | size=%s", len(batch.events))
             return
 
+        trace_id = str(uuid7()).replace("-", "")
+        parent_id = secrets.token_hex(8)
+        traceparent = f"00-{trace_id}-{parent_id}-01"
+
         payload = batch.model_dump_json()
         response = await self.client.post(
             f"{GATEWAY_ENDPOINT}/api/v1/events/batch",
             content=payload,
-            headers={"Content-Type": "application/json"},
+            headers={"Content-Type": "application/json", "traceparent": traceparent},
         )
         response.raise_for_status()
 
