@@ -1,4 +1,4 @@
-name: ARISE - Shadow Formatter
+name: system-arise
 
 on:
   push:
@@ -6,7 +6,8 @@ on:
   pull_request:
 
 jobs:
-  lint:
+  formatter:
+    name: shadow formatter
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
