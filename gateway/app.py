@@ -24,7 +24,9 @@ async def ingest_events(
 
     logger.info(
         "received batch | batch_id=%s events=%s trace_id=%s",
-        batch.batch_id, len(batch.events), trace_id,
+        batch.batch_id,
+        len(batch.events),
+        trace_id,
     )
 
     return IngestedBatch(
