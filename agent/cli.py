@@ -50,9 +50,10 @@ async def run_produce(config: ProduceConfig):
     # very fast asyncio queue, lives in running python process
     queue: asyncio.Queue = asyncio.Queue(maxsize=10000)
 
-    # Starting Producer task
+    # Producer -> Consumer Pattern
+    # - Starting Producer task
     producer = asyncio.create_task(generate_events(queue, config))
-    # Starting Streamer task
+    # - Starting Streamer task
     streamer = asyncio.create_task(stream_events(queue, config))
     # Both producer and streamer tasks are now running concurrently
 
@@ -64,3 +65,10 @@ async def run_produce(config: ProduceConfig):
 
     logger = logging.getLogger(__name__)
     logger.info("done | total=%s", total)
+
+
+@app.command()
+def gateway():
+    """Start the FastAPI ingestion gateway."""
+    import uvicorn
+    uvicorn.run("gateway.app:app", host="127.0.0.1", port=8000, log_level="info")
