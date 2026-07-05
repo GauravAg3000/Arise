@@ -1,4 +1,4 @@
-name: CI
+name: ARISE - Shadow Formatter
 
 on:
   push:
