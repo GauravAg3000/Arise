@@ -7,6 +7,9 @@ dependencies = ["agent", "gateway"]
 [tool.uv.workspace]
 members = ["agent", "shared", "gateway"]
 
+[dependency-groups]
+dev = ["ruff>=0.11"]
+
 [tool.uv.sources]
 agent = { workspace = true }
 shared = { workspace = true }

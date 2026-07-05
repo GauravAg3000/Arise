@@ -45,7 +45,9 @@ async def stream_events(queue: asyncio.Queue, config):
     streamer = HTTPStreamer(config.dry_run)
     total = 0
 
-    logger.info("streamer started | batch_size=%s timeout=%ss", config.batch_size, max_age_s)
+    logger.info(
+        "streamer started | batch_size=%s timeout=%ss", config.batch_size, max_age_s
+    )
 
     # Streamer logic
     while True:
