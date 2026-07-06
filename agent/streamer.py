@@ -34,6 +34,12 @@ class HTTPStreamer:
             headers={"Content-Type": "application/json", "traceparent": traceparent},
         )
         response.raise_for_status()
+        body = response.json()
+        logger.info(
+            "batch sent | size=%s request_id=%s",
+            len(batch.events),
+            body["request_id"],
+        )
 
     async def close(self):
         await self.client.aclose()
