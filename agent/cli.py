@@ -2,9 +2,7 @@ import asyncio
 import logging
 import typer
 from agent.config import ProduceConfig
-from agent.generator import generate_events
-from agent.streamer import stream_events
-
+from agent.runner import run_producer
 
 logging.basicConfig(
     level=logging.INFO,
@@ -43,28 +41,7 @@ def produce(
         batch_timeout=batch_timeout,
         dry_run=dry_run,
     )
-    asyncio.run(run_produce(config))
-
-
-async def run_produce(config: ProduceConfig):
-    # very fast asyncio queue, lives in running python process
-    queue: asyncio.Queue = asyncio.Queue(maxsize=10000)
-
-    # Producer -> Consumer Pattern
-    # - Starting Producer task
-    producer = asyncio.create_task(generate_events(queue, config))
-    # - Starting Streamer task
-    streamer = asyncio.create_task(stream_events(queue, config))
-    # Both producer and streamer tasks are now running concurrently
-
-    await producer
-
-    # Sending stop signal (None) to Streamer
-    await queue.put(None)
-    total = await streamer
-
-    logger = logging.getLogger(__name__)
-    logger.info("done | total=%s", total)
+    asyncio.run(run_producer(config))
 
 
 @app.command()
