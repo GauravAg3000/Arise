@@ -4,11 +4,10 @@ import logging
 from redis.asyncio import Redis
 from redis.exceptions import RedisError
 
+from shared.constants import STREAM_KEY
 from shared.schemas import EventBatch
 
 logger = logging.getLogger(__name__)
-
-STREAM_KEY = "arise:events"
 
 
 async def publish_batch(
