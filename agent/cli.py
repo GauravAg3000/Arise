@@ -73,3 +73,12 @@ def gateway():
     import uvicorn
 
     uvicorn.run("gateway.app:app", host="127.0.0.1", port=8000, log_level="info")
+
+
+@app.command()
+def worker():
+    """Start a Redis stream consumer worker."""
+    import asyncio
+    from worker.app import run_worker
+
+    asyncio.run(run_worker())

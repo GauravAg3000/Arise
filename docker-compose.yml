@@ -7,5 +7,21 @@ services:
       - redis_data:/data
     command: redis-server --appendonly yes --appendfsync everysec
 
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: arise-db
+      POSTGRES_USER: system
+      POSTGRES_PASSWORD: system
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U system -d arise-db"]
+      interval: 2s
+      retries: 10
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+
 volumes:
   redis_data:
+  pg_data:

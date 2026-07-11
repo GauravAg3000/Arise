@@ -54,3 +54,6 @@
 
    - If a worker crashes after writing to the DB but before ACKing, another worker may process the same message again.  
    - Other messaging systems like Kafka (designed for very large scale distributed event streaming, millions of events/sec, supports long-term retention)
+
+   - `XLEN arise:events` to list no of events currently in redis stream
+   - `XRANGE arise:events - + COUNT 1` to show the first event in redis stream

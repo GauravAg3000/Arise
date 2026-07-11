@@ -62,6 +62,9 @@ async def ingest_events(
         received_at.isoformat(),
     )
 
+    # Every async ingestion API returns a receipt
+    # - AWS returns requestId, Kafka REST Proxy returns offsets, Stripe returns event IDs.
+    # - Arise gateway returning 202 + body.
     return IngestedBatch(
         batch_id=batch.batch_id,
         request_id=request_id,
