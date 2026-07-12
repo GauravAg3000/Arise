@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 import time
 from datetime import datetime
@@ -20,14 +21,16 @@ BLOCK_MS = 1000
 
 
 async def ensure_consumer_group(redis: Redis) -> None:
-    try:
+    # expect ResponseError and pass!
+    with contextlib.suppress(ResponseError):
         await redis.xgroup_create(STREAM_KEY, GROUP, id="0", mkstream=True)
-    except ResponseError:
-        pass
 
 
 async def consume(
-    redis: Redis, pool, worker_id: str, shutdown_event: asyncio.Event
+    redis: Redis,
+    pool,
+    worker_id: str,
+    shutdown_event: asyncio.Event,
 ) -> None:
     await ensure_consumer_group(redis)
 
@@ -39,7 +42,11 @@ async def consume(
     while not shutdown_event.is_set():
         try:
             result = await redis.xreadgroup(
-                GROUP, worker_id, {STREAM_KEY: ">"}, count=READ_COUNT, block=BLOCK_MS
+                GROUP,
+                worker_id,
+                {STREAM_KEY: ">"},
+                count=READ_COUNT,
+                block=BLOCK_MS,
             )
         except Exception:
             logger.exception("xreadgroup error")
@@ -79,7 +86,7 @@ async def _flush(redis: Redis, pool, buffer: list[tuple[str, dict]]) -> None:
                 "received_at": datetime.fromisoformat(str(fields.get("received_at"))),
                 "request_id": fields.get("request_id"),
                 "trace_id": fields.get("trace_id"),
-            }
+            },
         )
 
     logger.info(

@@ -12,7 +12,7 @@ from worker.utils import register_shutdown
 
 load_dotenv()
 
-settings = WorkerSettings() # type: ignore
+settings = WorkerSettings()  # type: ignore
 
 logger = logging.getLogger(__name__)
 

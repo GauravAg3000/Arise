@@ -21,7 +21,10 @@ def register_shutdown() -> asyncio.Event:
 
 
 def should_flush(
-    buffer: list, last_flush: float, batch_size: int, batch_timeout: float
+    buffer: list,
+    last_flush: float,
+    batch_size: int,
+    batch_timeout: float,
 ) -> bool:
     if not buffer:
         return False

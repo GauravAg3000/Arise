@@ -1,6 +1,6 @@
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Annotated
 
 from dotenv import load_dotenv
@@ -45,7 +45,7 @@ async def ingest_events(
 ) -> IngestedBatch:
     request_id = str(uuid7())
     trace_id = traceparent.split("-")[1] if traceparent else None
-    received_at = datetime.now(timezone.utc)
+    received_at = datetime.now(UTC)
 
     logger.info(
         "received batch | batch_id=%s events=%s trace_id=%s",
