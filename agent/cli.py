@@ -1,6 +1,8 @@
 import asyncio
 import logging
+
 import typer
+
 from agent.config import ProduceConfig
 from agent.runner import run_producer
 
@@ -65,6 +67,7 @@ def worker(
         WorkerPool(size=workers).run()
     else:
         import asyncio
+
         from worker.app import run_worker
 
         asyncio.run(run_worker())

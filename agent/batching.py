@@ -1,7 +1,7 @@
-import time
 import logging
-from shared.schemas import Event, EventBatch
+import time
 
+from shared.schemas import Event, EventBatch
 
 logger = logging.getLogger(__name__)
 

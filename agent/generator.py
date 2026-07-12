@@ -1,8 +1,8 @@
 import asyncio
 import logging
-from shared.schemas import Event
-from agent.utils import parse_duration
 
+from agent.utils import parse_duration
+from shared.schemas import Event
 
 logger = logging.getLogger(__name__)
 

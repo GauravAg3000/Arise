@@ -1,6 +1,5 @@
 from pydantic import BaseModel
 
-
 GATEWAY_ENDPOINT = "http://localhost:8000"
 
 

@@ -50,6 +50,11 @@ async def consume(
             for _, messages in result:
                 for msg_id, fields in messages:
                     buffer.append((msg_id, fields))
+                logger.info(
+                    "consumed | count=%s first_id=%s",
+                    len(messages),
+                    messages[0][0] if messages else "?",
+                )
 
         if should_flush(buffer, last_flush, BATCH_SIZE, BATCH_TIMEOUT):
             await _flush(redis, pool, buffer)
@@ -78,9 +83,14 @@ async def _flush(redis: Redis, pool, buffer: list[tuple[str, dict]]) -> None:
         )
 
     logger.info(
-        "flushing batch | count=%s first_id=%s",
+        "inserted | count=%s first_id=%s",
         len(events),
         msg_ids[0] if msg_ids else "?",
     )
     await insert_events(pool, events)
     await redis.xack(STREAM_KEY, GROUP, *msg_ids)
+    logger.info(
+        "acknowledged | count=%s last_id=%s",
+        len(msg_ids),
+        msg_ids[-1] if msg_ids else "?",
+    )

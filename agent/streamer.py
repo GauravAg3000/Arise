@@ -1,12 +1,14 @@
 import asyncio
 import logging
 import secrets
+
 import httpx
 from uuid_extensions import uuid7
-from shared.schemas import EventBatch
-from agent.config import GATEWAY_ENDPOINT
+
 from agent.batching import BatchBuffer
+from agent.config import GATEWAY_ENDPOINT
 from agent.utils import parse_duration
+from shared.schemas import EventBatch
 
 logger = logging.getLogger(__name__)
 
