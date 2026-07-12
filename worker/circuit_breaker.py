@@ -67,13 +67,14 @@ class CircuitBreaker:
         return False
 
     def record_success(self) -> None:
-        """A PostgreSQL insert succeeded. Reset to CLOSED."""
-        previous = self._state
+        """A PostgreSQL insert succeeded. Reset to CLOSED.
+        """
+        if self._state is CircuitState.CLOSED:
+            return
         self._state = CircuitState.CLOSED
         self._failure_count = 0
         self._half_open_used = False
-        if previous is not CircuitState.CLOSED:
-            logger.info("circuit closed | PostgreSQL healthy again")
+        logger.info("circuit closed | PostgreSQL healthy again")
 
     def record_failure(self) -> None:
         """A DatabaseConnectionError occurred. Increment failure counter."""

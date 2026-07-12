@@ -55,6 +55,11 @@ class DatabaseRouter:
             try:
                 await insert_events(self._pg_pool, events)
                 self.cb.record_success()
+                logger.info(
+                    "pg insert | count=%s cb_state=%s",
+                    len(events),
+                    self.cb.state.value,
+                )
                 return
             except DatabaseConnectionError:
                 self.cb.record_failure()

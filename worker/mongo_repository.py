@@ -53,15 +53,15 @@ class MongoStore:
     async def _ensure_connected(self) -> AsyncMongoClient | None:
         if self._client is not None:
             return self._client
-        
+
         try:
             client = AsyncMongoClient(self._uri)
             db = client[DATABASE]
-            
+
             existing = await db.list_collection_names()
             if COLLECTION not in existing:
                 await db.create_collection(COLLECTION)
-                
+
             self._client = client
             logger.info("mongo store connected (lazy)")
             return client
