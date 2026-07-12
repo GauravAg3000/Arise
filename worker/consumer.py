@@ -8,7 +8,7 @@ from redis.asyncio import Redis
 from redis.exceptions import ResponseError
 
 from shared.constants import STREAM_KEY
-from worker.repository import insert_events
+from worker.db_router import DatabaseRouter
 from worker.utils import should_flush
 
 logger = logging.getLogger(__name__)
@@ -28,7 +28,7 @@ async def ensure_consumer_group(redis: Redis) -> None:
 
 async def consume(
     redis: Redis,
-    pool,
+    router: DatabaseRouter,
     worker_id: str,
     shutdown_event: asyncio.Event,
 ) -> None:
@@ -64,16 +64,20 @@ async def consume(
                 )
 
         if should_flush(buffer, last_flush, BATCH_SIZE, BATCH_TIMEOUT):
-            await _flush(redis, pool, buffer)
+            await _flush(redis, router, buffer)
             buffer.clear()
             last_flush = time.monotonic()
 
     if buffer:
         logger.info("flushing remaining %s events on shutdown", len(buffer))
-        await _flush(redis, pool, buffer)
+        await _flush(redis, router, buffer)
 
 
-async def _flush(redis: Redis, pool, buffer: list[tuple[str, dict]]) -> None:
+async def _flush(
+    redis: Redis,
+    router: DatabaseRouter,
+    buffer: list[tuple[str, dict]],
+) -> None:
     events = []
     msg_ids = []
     for msg_id, fields in buffer:
@@ -89,12 +93,8 @@ async def _flush(redis: Redis, pool, buffer: list[tuple[str, dict]]) -> None:
             },
         )
 
-    logger.info(
-        "inserted | count=%s first_id=%s",
-        len(events),
-        msg_ids[0] if msg_ids else "?",
-    )
-    await insert_events(pool, events)
+    await router.insert(events)
+
     await redis.xack(STREAM_KEY, GROUP, *msg_ids)
     logger.info(
         "acknowledged | count=%s last_id=%s",

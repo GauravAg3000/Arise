@@ -16,3 +16,5 @@ class WorkerSettings(BaseSettings):
     pg_user: str = Field(validation_alias="PGUSER")
     pg_password: str = Field(validation_alias="PGPASSWORD")
     pg_database: str = Field(validation_alias="PGDATABASE")
+
+    mongo_uri: str = Field(default="mongodb://localhost:27017", validation_alias="MONGO_URI")
