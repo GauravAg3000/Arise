@@ -1,4 +1,5 @@
 import logging
+import os
 import socket
 from dotenv import load_dotenv
 
@@ -11,7 +12,8 @@ load_dotenv()
 
 logger = logging.getLogger(__name__)
 
-WORKER_ID = f"worker-{socket.gethostname()}"
+WORKER_INDEX = os.getenv("WORKER_INDEX", "0")
+WORKER_ID = f"worker-{socket.gethostname()}-{WORKER_INDEX}"
 
 
 async def run_worker() -> None:
