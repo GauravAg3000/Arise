@@ -6,8 +6,8 @@ from dotenv import load_dotenv
 
 from shared.settings import WorkerSettings
 from worker.consumer import consume
+from worker.db_router import DatabaseRouter
 from worker.redis_client import new_redis_client
-from worker.repository import create_pool, init_db
 from worker.utils import register_shutdown
 
 load_dotenv()
@@ -22,20 +22,14 @@ WORKER_ID = f"worker-{socket.gethostname()}-{WORKER_INDEX}"
 
 async def run_worker() -> None:
     redis = new_redis_client(settings.redis_host, settings.redis_port)
-    pool = await create_pool(
-        host=settings.pg_host,
-        port=settings.pg_port,
-        user=settings.pg_user,
-        password=settings.pg_password,
-        database=settings.pg_database,
-    )
 
-    await init_db(pool)
+    router = DatabaseRouter(settings)
+    await router.connect(redis)
 
     shutdown_event = register_shutdown()
 
     try:
-        await consume(redis, pool, WORKER_ID, shutdown_event)
+        await consume(redis, router, WORKER_ID, shutdown_event)
     finally:
+        await router.close()
         await redis.aclose()
-        await pool.close()
