@@ -26,23 +26,26 @@ class DatabaseRouter:
     def __init__(self, settings) -> None:
         self._pg_pool = None
         self._redis: Redis | None = None
-        self.cb = CircuitBreaker()
+        self._circuit_breaker = CircuitBreaker()
         self._mongo = MongoStore(settings.mongo_uri)
         self._pg_config = settings
 
     async def connect(self, redis: Redis) -> None:
         self._redis = redis
 
-        self._pg_pool = await create_pool(
-            host=self._pg_config.pg_host,
-            port=self._pg_config.pg_port,
-            user=self._pg_config.pg_user,
-            password=self._pg_config.pg_password,
-            database=self._pg_config.pg_database,
-        )
-        await init_db(self._pg_pool)
-
-        logger.info("database router connected")
+        try:
+            self._pg_pool = await create_pool(
+                host=self._pg_config.pg_host,
+                port=self._pg_config.pg_port,
+                user=self._pg_config.pg_user,
+                password=self._pg_config.pg_password,
+                database=self._pg_config.pg_database,
+            )
+            await init_db(self._pg_pool)
+            logger.info("database router connected")
+        except Exception:
+            logger.warning("postgres unavailable at startup — using fallback")
+            self._circuit_breaker.force_open()
 
     async def close(self) -> None:
         if self._pg_pool is not None:
@@ -51,37 +54,41 @@ class DatabaseRouter:
         logger.info("database router closed")
 
     async def insert(self, events: list[dict]) -> None:
-        if self.cb.can_try_primary():
-            try:
-                await insert_events(self._pg_pool, events)
-                self.cb.record_success()
-                logger.info(
-                    "pg insert | count=%s cb_state=%s",
-                    len(events),
-                    self.cb.state.value,
-                )
-                return
-            except DatabaseConnectionError:
-                self.cb.record_failure()
-            except InvalidDataError:
-                await self._route_to_dlq(events, "invalid_data")
-                return
-
-        await self._fallback(events)
-
-    async def _fallback(self, events: list[dict]) -> None:
-        try:
-            await self._mongo.insert(events)
-            logger.warning(
-                "mongo fallback | count=%s cb_state=%s",
-                len(events),
-                self.cb.state.value,
-            )
+        if await self._try_postgres(events):
             return
-        except Exception:
-            logger.exception("mongo fallback failed")
+
+        if await self._try_mongo(events):
+            return
 
         await self._route_to_dlq(events, "fallback_exhausted")
+
+    async def _try_postgres(self, events: list[dict]) -> bool:
+        if self._pg_pool is None:
+            return False
+
+        if not self._circuit_breaker.can_try_primary():
+            return False
+
+        try:
+            await insert_events(self._pg_pool, events)
+            self._circuit_breaker.record_success()
+            logger.info("pg insert | count=%s", len(events))
+            return True
+        except DatabaseConnectionError:
+            self._circuit_breaker.record_failure()
+            return False
+        except InvalidDataError:
+            await self._route_to_dlq(events, "invalid_data")
+            return True
+
+    async def _try_mongo(self, events: list[dict]) -> bool:
+        try:
+            await self._mongo.insert(events)
+            logger.warning("mongo fallback | count=%s", len(events))
+            return True
+        except Exception:
+            logger.exception("mongo fallback failed")
+            return False
 
     async def _route_to_dlq(self, events: list[dict], reason: str) -> None:
         if self._redis is None:
