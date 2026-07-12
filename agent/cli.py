@@ -53,9 +53,22 @@ def gateway():
 
 
 @app.command()
-def worker():
-    """Start a Redis stream consumer worker."""
-    import asyncio
-    from worker.app import run_worker
+def worker(
+    workers: int = typer.Option(
+        1, "--workers", "-w", help="Number of worker processes"
+    ),
+):
+    """Start one or more Redis stream consumer workers."""
+    if workers > 1:
+        from worker.pool import WorkerPool
 
-    asyncio.run(run_worker())
+        WorkerPool(size=workers).run()
+    else:
+        import asyncio
+        from worker.app import run_worker
+
+        asyncio.run(run_worker())
+
+
+if __name__ == "__main__":
+    app()
