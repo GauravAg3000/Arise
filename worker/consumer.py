@@ -1,4 +1,5 @@
 import asyncio
+import contextlib
 import logging
 import time
 from datetime import datetime
@@ -20,14 +21,16 @@ BLOCK_MS = 1000
 
 
 async def ensure_consumer_group(redis: Redis) -> None:
-    try:
+    # expect ResponseError and pass!
+    with contextlib.suppress(ResponseError):
         await redis.xgroup_create(STREAM_KEY, GROUP, id="0", mkstream=True)
-    except ResponseError:
-        pass
 
 
 async def consume(
-    redis: Redis, pool, worker_id: str, shutdown_event: asyncio.Event
+    redis: Redis,
+    pool,
+    worker_id: str,
+    shutdown_event: asyncio.Event,
 ) -> None:
     await ensure_consumer_group(redis)
 
@@ -39,7 +42,11 @@ async def consume(
     while not shutdown_event.is_set():
         try:
             result = await redis.xreadgroup(
-                GROUP, worker_id, {STREAM_KEY: ">"}, count=READ_COUNT, block=BLOCK_MS
+                GROUP,
+                worker_id,
+                {STREAM_KEY: ">"},
+                count=READ_COUNT,
+                block=BLOCK_MS,
             )
         except Exception:
             logger.exception("xreadgroup error")
@@ -50,6 +57,11 @@ async def consume(
             for _, messages in result:
                 for msg_id, fields in messages:
                     buffer.append((msg_id, fields))
+                logger.info(
+                    "consumed | count=%s first_id=%s",
+                    len(messages),
+                    messages[0][0] if messages else "?",
+                )
 
         if should_flush(buffer, last_flush, BATCH_SIZE, BATCH_TIMEOUT):
             await _flush(redis, pool, buffer)
@@ -74,13 +86,18 @@ async def _flush(redis: Redis, pool, buffer: list[tuple[str, dict]]) -> None:
                 "received_at": datetime.fromisoformat(str(fields.get("received_at"))),
                 "request_id": fields.get("request_id"),
                 "trace_id": fields.get("trace_id"),
-            }
+            },
         )
 
     logger.info(
-        "flushing batch | count=%s first_id=%s",
+        "inserted | count=%s first_id=%s",
         len(events),
         msg_ids[0] if msg_ids else "?",
     )
     await insert_events(pool, events)
     await redis.xack(STREAM_KEY, GROUP, *msg_ids)
+    logger.info(
+        "acknowledged | count=%s last_id=%s",
+        len(msg_ids),
+        msg_ids[-1] if msg_ids else "?",
+    )

@@ -5,6 +5,7 @@ description = "Shared schemas and models for ARISE"
 requires-python = ">=3.12"
 dependencies = [
     "pydantic>=2.0",
+    "pydantic-settings>=2.0",
     "uuid7>=0.1",
 ]
 

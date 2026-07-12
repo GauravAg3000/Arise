@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import os
 import signal
@@ -44,10 +45,9 @@ class WorkerPool:
         logger.info("Stopping %d workers...", len(self._processes))
 
         for proc in self._processes:
-            try:
+            # expect ProcessLookupError and pass!
+            with contextlib.suppress(ProcessLookupError):
                 proc.terminate()
-            except ProcessLookupError:
-                pass
 
     def wait(self) -> None:
         logger.info("Waiting for workers to exit...")

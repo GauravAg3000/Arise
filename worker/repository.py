@@ -5,8 +5,22 @@ import asyncpg
 logger = logging.getLogger(__name__)
 
 
-async def create_pool() -> asyncpg.Pool:
-    return await asyncpg.create_pool(min_size=1, max_size=2)
+async def create_pool(
+    host: str,
+    port: int,
+    user: str,
+    password: str,
+    database: str,
+) -> asyncpg.Pool:
+    return await asyncpg.create_pool(
+        host=host,
+        port=port,
+        user=user,
+        password=password,
+        database=database,
+        min_size=1,
+        max_size=2,
+    )
 
 
 async def init_db(pool: asyncpg.Pool) -> None:

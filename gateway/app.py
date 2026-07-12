@@ -1,36 +1,36 @@
 import logging
-import os
 from contextlib import asynccontextmanager
-from dotenv import load_dotenv
-from datetime import datetime, timezone
+from datetime import UTC, datetime, timezone
 from typing import Annotated
 
+from dotenv import load_dotenv
 from fastapi import FastAPI, Header, Request, status
 from redis.asyncio import Redis
 from uuid_extensions import uuid7
 
-from shared.schemas import EventBatch
 from gateway.schemas import IngestedBatch
 from gateway.stream import publish_batch
+from shared.schemas import EventBatch
+from shared.settings import GatewaySettings
 
 load_dotenv()
+
+settings = GatewaySettings()
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup code
     redis = Redis(
-        host=os.getenv("ARISE_REDIS_HOST", "localhost"),
-        port=int(os.getenv("ARISE_REDIS_PORT", "6379")),
+        host=settings.redis_host,
+        port=settings.redis_port,
         decode_responses=True,
     )
     app.state.redis = redis
 
     yield
 
-    # Shutdown code
     await redis.aclose()
 
 
@@ -45,7 +45,7 @@ async def ingest_events(
 ) -> IngestedBatch:
     request_id = str(uuid7())
     trace_id = traceparent.split("-")[1] if traceparent else None
-    received_at = datetime.now(timezone.utc)
+    received_at = datetime.now(UTC)
 
     logger.info(
         "received batch | batch_id=%s events=%s trace_id=%s",

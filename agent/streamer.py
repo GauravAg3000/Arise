@@ -1,12 +1,14 @@
 import asyncio
 import logging
 import secrets
+
 import httpx
 from uuid_extensions import uuid7
-from shared.schemas import EventBatch
-from agent.config import GATEWAY_ENDPOINT
+
 from agent.batching import BatchBuffer
+from agent.config import GATEWAY_ENDPOINT
 from agent.utils import parse_duration
+from shared.schemas import EventBatch
 
 logger = logging.getLogger(__name__)
 
@@ -52,7 +54,9 @@ async def stream_events(queue: asyncio.Queue, config):
     total = 0
 
     logger.info(
-        "streamer started | batch_size=%s timeout=%ss", config.batch_size, max_age_s
+        "streamer started | batch_size=%s timeout=%ss",
+        config.batch_size,
+        max_age_s,
     )
 
     # Streamer logic
@@ -68,7 +72,7 @@ async def stream_events(queue: asyncio.Queue, config):
                 await streamer.send(batch)
                 total += len(batch.events)
 
-        except asyncio.TimeoutError:
+        except TimeoutError:
             # Batch timeout --> Sending batch (whatever events are accumulated in batch till now)
             batch = buffer.flush_if_expired()
             if batch:

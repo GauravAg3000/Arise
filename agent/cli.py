@@ -1,6 +1,8 @@
 import asyncio
 import logging
+
 import typer
+
 from agent.config import ProduceConfig
 from agent.runner import run_producer
 
@@ -22,16 +24,28 @@ def main():
 def produce(
     rate: int = typer.Option(100, "--rate", "-r", help="Events per second"),
     duration: str = typer.Option(
-        "30s", "--duration", "-d", help="Duration (e.g., 30s, 5m, 1h)"
+        "30s",
+        "--duration",
+        "-d",
+        help="Duration (e.g., 30s, 5m, 1h)",
     ),
     batch_size: int = typer.Option(
-        100, "--batch-size", "-b", help="Max events per batch"
+        100,
+        "--batch-size",
+        "-b",
+        help="Max events per batch",
     ),
     batch_timeout: str = typer.Option(
-        "1s", "--batch-timeout", "-t", help="Max batch age (e.g., 500ms, 2s)"
+        "1s",
+        "--batch-timeout",
+        "-t",
+        help="Max batch age (e.g., 500ms, 2s)",
     ),
     dry_run: bool = typer.Option(
-        False, "--dry-run", "-n", help="Print batches without sending"
+        False,
+        "--dry-run",
+        "-n",
+        help="Print batches without sending",
     ),
 ):
     config = ProduceConfig(
@@ -55,7 +69,10 @@ def gateway():
 @app.command()
 def worker(
     workers: int = typer.Option(
-        1, "--workers", "-w", help="Number of worker processes"
+        1,
+        "--workers",
+        "-w",
+        help="Number of worker processes",
     ),
 ):
     """Start one or more Redis stream consumer workers."""
@@ -65,6 +82,7 @@ def worker(
         WorkerPool(size=workers).run()
     else:
         import asyncio
+
         from worker.app import run_worker
 
         asyncio.run(run_worker())
