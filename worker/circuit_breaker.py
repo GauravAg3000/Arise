@@ -1,6 +1,6 @@
-from enum import Enum
 import logging
 import time
+from enum import Enum
 
 logger = logging.getLogger(__name__)
 
