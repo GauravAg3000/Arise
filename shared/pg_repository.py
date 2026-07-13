@@ -2,7 +2,7 @@ import logging
 
 import asyncpg
 
-from worker.errors import DatabaseConnectionError, InvalidDataError
+from shared.errors import DatabaseConnectionError, InvalidDataError
 
 logger = logging.getLogger(__name__)
 

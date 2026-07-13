@@ -657,15 +657,19 @@ name = "shared"
 version = "0.1.0"
 source = { editable = "shared" }
 dependencies = [
+    { name = "asyncpg" },
     { name = "pydantic" },
     { name = "pydantic-settings" },
+    { name = "pymongo" },
     { name = "uuid7" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "asyncpg", specifier = ">=0.29" },
     { name = "pydantic", specifier = ">=2.0" },
     { name = "pydantic-settings", specifier = ">=2.0" },
+    { name = "pymongo", specifier = ">=4.9" },
     { name = "uuid7", specifier = ">=0.1" },
 ]
 
@@ -937,16 +941,12 @@ name = "worker"
 version = "0.1.0"
 source = { editable = "worker" }
 dependencies = [
-    { name = "asyncpg" },
-    { name = "pymongo" },
     { name = "redis", extra = ["hiredis"] },
     { name = "shared" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "asyncpg", specifier = ">=0.30" },
-    { name = "pymongo", extras = ["asyncio"], specifier = ">=4.11" },
     { name = "redis", extras = ["hiredis"], specifier = ">=5.2" },
     { name = "shared", editable = "shared" },
 ]

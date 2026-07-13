@@ -12,8 +12,7 @@ COLLECTION = "events"
 class MongoStore:
     """Lazy-connected MongoDB fallback store.
 
-    Connects on first ``insert()`` call. Idempotent ``close()`` for shutdown.
-    Safe in single-consumer asyncio — no locks needed.
+    Connects on first operation. Idempotent ``close()`` for shutdown.
     """
 
     def __init__(self, uri: str) -> None:
@@ -37,13 +36,56 @@ class MongoStore:
                 "request_id": e.get("request_id"),
                 "trace_id": e.get("trace_id"),
                 "stored_at": now,
-                "replayed": False,
+                "status": "pending",
             }
             for e in events
         ]
 
         db = client[DATABASE]
         await db[COLLECTION].insert_many(records, ordered=False)
+
+    async def find_pending(self, limit: int) -> list[dict]:
+        client = await self._ensure_connected()
+        if client is None:
+            raise ConnectionError("MongoDB not available")
+
+        db = client[DATABASE]
+        cursor = db[COLLECTION].find(
+            {"status": "pending"},
+            sort=[("stored_at", 1)],
+            limit=limit,
+        )
+        return await cursor.to_list(length=limit)
+
+    async def mark_replayed(self, event_ids: list[str]) -> None:
+        client = await self._ensure_connected()
+        if client is None:
+            raise ConnectionError("MongoDB not available")
+
+        db = client[DATABASE]
+        await db[COLLECTION].update_many(
+            {"event_id": {"$in": event_ids}},
+            {"$set": {"status": "replayed", "replayed_at": datetime.now(UTC)}},
+        )
+
+    async def mark_failed(self, event_ids: list[str], error: str) -> None:
+        client = await self._ensure_connected()
+        if client is None:
+            raise ConnectionError("MongoDB not available")
+
+        db = client[DATABASE]
+        await db[COLLECTION].update_many(
+            {"event_id": {"$in": event_ids}},
+            {"$set": {"status": "failed", "replay_error": error}},
+        )
+
+    async def count_pending(self) -> int:
+        client = await self._ensure_connected()
+        if client is None:
+            raise ConnectionError("MongoDB not available")
+
+        db = client[DATABASE]
+        return await db[COLLECTION].count_documents({"status": "pending"})
 
     async def close(self) -> None:
         if self._client is not None:
