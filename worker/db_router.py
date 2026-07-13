@@ -3,10 +3,10 @@ import logging
 from redis.asyncio import Redis
 
 from shared.constants import DLQ_STREAM
+from shared.errors import DatabaseConnectionError, InvalidDataError
+from shared.mongo_repository import MongoStore
+from shared.pg_repository import create_pool, init_db, insert_events
 from worker.circuit_breaker import CircuitBreaker
-from worker.errors import DatabaseConnectionError, InvalidDataError
-from worker.mongo_repository import MongoStore
-from worker.pg_repository import create_pool, init_db, insert_events
 
 logger = logging.getLogger(__name__)
 
