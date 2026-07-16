@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+FROM ghcr.io/astral-sh/uv:python3.14-bookworm-slim
 
 WORKDIR /app
 
@@ -14,4 +14,6 @@ RUN uv sync --frozen
 
 COPY . .
 
-CMD ["uv", "run", "arise", "healer"]
+ENV PATH="/app/.venv/bin:$PATH"
+
+CMD ["python3", "-m", "healer.app"]
