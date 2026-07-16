@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from dotenv import load_dotenv
 
@@ -7,6 +8,12 @@ from healer.utils import register_shutdown
 from shared.settings import HealerSettings
 
 load_dotenv()
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    stream=sys.stdout,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -23,3 +30,9 @@ async def run_healer() -> None:
         await healer.daemon_loop(shutdown_event)
     finally:
         await healer.close()
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(run_healer())
