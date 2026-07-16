@@ -2,7 +2,7 @@
 name = "arise"
 version = "0.1.0"
 requires-python = ">=3.12"
-dependencies = ["agent", "gateway", "worker"]
+dependencies = ["agent", "gateway", "healer", "worker"]
 
 [tool.ruff.lint]
 select = ["E", "W", "I", "N", "UP", "SIM", "T20"]
@@ -11,7 +11,7 @@ select = ["E", "W", "I", "N", "UP", "SIM", "T20"]
 line-length = 120
 
 [tool.uv.workspace]
-members = ["agent", "shared", "gateway", "worker"]
+members = ["agent", "shared", "gateway", "worker", "healer"]
 
 [dependency-groups]
 dev = ["ruff>=0.11"]
@@ -21,3 +21,4 @@ agent = { workspace = true }
 shared = { workspace = true }
 gateway = { workspace = true }
 worker = { workspace = true }
+healer = { workspace = true }

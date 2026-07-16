@@ -1,0 +1,17 @@
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+
+WORKDIR /app
+
+RUN mkdir -p agent shared gateway worker healer
+COPY pyproject.toml uv.lock ./
+COPY agent/pyproject.toml agent/
+COPY shared/pyproject.toml shared/
+COPY gateway/pyproject.toml gateway/
+COPY worker/pyproject.toml worker/
+COPY healer/pyproject.toml healer/
+
+RUN uv sync --frozen
+
+COPY . .
+
+CMD ["uv", "run", "arise", "healer"]

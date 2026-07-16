@@ -29,6 +29,19 @@ services:
     volumes:
       - mongo_data:/data/db
 
+  healer:
+    build:
+      dockerfile: Dockerfile.healer
+    environment:
+      PGHOST: postgres
+      PGUSER: system
+      PGPASSWORD: system
+      PGDATABASE: arise-db
+      MONGO_URI: mongodb://mongo:27017
+    depends_on:
+      postgres:
+        condition: service_healthy
+
 volumes:
   redis_data:
   pg_data:
