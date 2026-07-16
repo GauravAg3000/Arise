@@ -88,5 +88,15 @@ def worker(
         asyncio.run(run_worker())
 
 
+@app.command()
+def healer():
+    """Start the healer daemon for replaying failed events from MongoDB."""
+    import asyncio
+
+    from healer.app import run_healer
+
+    asyncio.run(run_healer())
+
+
 if __name__ == "__main__":
     app()
