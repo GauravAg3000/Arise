@@ -5,6 +5,7 @@ from pydantic_settings import BaseSettings
 class GatewaySettings(BaseSettings):
     redis_host: str = Field(default="localhost", validation_alias="ARISE_REDIS_HOST")
     redis_port: int = Field(default=6379, validation_alias="ARISE_REDIS_PORT")
+    gateway_max_queue: int = Field(default=50000, validation_alias="ARISE_GATEWAY_MAX_QUEUE")
 
 
 class WorkerSettings(BaseSettings):

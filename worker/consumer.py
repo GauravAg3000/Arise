@@ -7,7 +7,7 @@ from datetime import datetime
 from redis.asyncio import Redis
 from redis.exceptions import ResponseError
 
-from shared.constants import STREAM_KEY
+from shared.constants import DLQ_STREAM, STREAM_KEY
 from worker.db_router import DatabaseRouter
 from worker.utils import should_flush
 
@@ -18,6 +18,7 @@ BATCH_SIZE = 100
 BATCH_TIMEOUT = 1.0
 READ_COUNT = 50
 BLOCK_MS = 1000
+DEPTH_LOG_INTERVAL = 30
 
 
 async def ensure_consumer_group(redis: Redis) -> None:
@@ -38,14 +39,39 @@ async def consume(
 
     buffer: list[tuple[str, dict]] = []
     last_flush = time.monotonic()
+    last_depth_log = 0.0
 
     while not shutdown_event.is_set():
+        try:
+            queue_depth = await redis.xlen(STREAM_KEY)
+            now = time.monotonic()
+            if now - last_depth_log > DEPTH_LOG_INTERVAL:
+                dlq_depth = await redis.xlen(DLQ_STREAM)
+                logger.info(
+                    "queue status | stream=%s dlq=%s",
+                    queue_depth,
+                    dlq_depth,
+                )
+                last_depth_log = now
+        except Exception:
+            queue_depth = 0
+
+        if queue_depth >= 10000:
+            read_count = 200
+            batch_timeout = 0.2
+        elif queue_depth >= 1000:
+            read_count = 50
+            batch_timeout = 1.0
+        else:
+            read_count = 10
+            batch_timeout = 1.0
+
         try:
             result = await redis.xreadgroup(
                 GROUP,
                 worker_id,
                 {STREAM_KEY: ">"},
-                count=READ_COUNT,
+                count=read_count,
                 block=BLOCK_MS,
             )
         except Exception:
@@ -58,12 +84,13 @@ async def consume(
                 for msg_id, fields in messages:
                     buffer.append((msg_id, fields))
                 logger.info(
-                    "consumed | count=%s first_id=%s",
+                    "consumed | count=%s first_id=%s depth=%s",
                     len(messages),
                     messages[0][0] if messages else "?",
+                    queue_depth,
                 )
 
-        if should_flush(buffer, last_flush, BATCH_SIZE, BATCH_TIMEOUT):
+        if should_flush(buffer, last_flush, BATCH_SIZE, batch_timeout):
             await _flush(redis, router, buffer)
             buffer.clear()
             last_flush = time.monotonic()
