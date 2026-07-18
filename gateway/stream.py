@@ -40,7 +40,7 @@ async def publish_batch(
                 batch.batch_id,
                 len(batch.events),
             )
-            return
+            raise
 
         logger.info(
             "enqueued | events=%s stream=%s batch_id=%s",

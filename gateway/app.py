@@ -6,6 +6,7 @@ from typing import Annotated
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException, Request, status
 from redis.asyncio import Redis
+from redis.exceptions import RedisError
 from uuid_extensions import uuid7
 
 from gateway.schemas import IngestedBatch
@@ -48,10 +49,17 @@ async def ingest_events(
     trace_id = traceparent.split("-")[1] if traceparent else None
     received_at = datetime.now(UTC)
 
-    queue_depth = await request.app.state.redis.xlen(STREAM_KEY)
+    try:
+        queue_depth = await request.app.state.redis.xlen(STREAM_KEY)
+    except RedisError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            headers={"Retry-After": "5"},
+            detail={"error": "storage unavailable"},
+        )
+
     if queue_depth >= settings.gateway_max_queue:
         excess = queue_depth - int(settings.gateway_max_queue * 0.8)
-        # Assuming Workers can process roughly 10000 messages per second
         retry_after = min(30, max(5, excess // 10000 + 1))
         raise HTTPException(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -72,13 +80,20 @@ async def ingest_events(
         queue_depth,
     )
 
-    await publish_batch(
-        request.app.state.redis,
-        batch,
-        request_id,
-        trace_id,
-        received_at.isoformat(),
-    )
+    try:
+        await publish_batch(
+            request.app.state.redis,
+            batch,
+            request_id,
+            trace_id,
+            received_at.isoformat(),
+        )
+    except RedisError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            headers={"Retry-After": "5"},
+            detail={"error": "storage unavailable"},
+        )
 
     # Every async ingestion API returns a receipt
     # - AWS returns requestId, Kafka REST Proxy returns offsets, Stripe returns event IDs.

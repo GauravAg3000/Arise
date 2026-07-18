@@ -36,10 +36,12 @@ class HTTPStreamer:
                 content=payload,
                 headers={"Content-Type": "application/json", "traceparent": traceparent},
             )
-            if response.status_code == 429:
+            if response.status_code in (429, 503):
                 retry_after = float(response.headers.get("Retry-After", 5))
+                reason = "rate limited" if response.status_code == 429 else "service unavailable"
                 logger.warning(
-                    "rate limited | batch_id=%s attempt=%s/10 retry_after=%ss",
+                    "%s | batch_id=%s attempt=%s/10 retry_after=%ss",
+                    reason,
                     batch.batch_id,
                     attempt + 1,
                     retry_after,
@@ -78,7 +80,19 @@ async def stream_events(queue: asyncio.Queue, config):
         max_age_s,
     )
 
-    # Streamer logic
+    async def _send_or_requeue(batch: EventBatch) -> int:
+        try:
+            await streamer.send(batch)
+            return len(batch.events)
+        except httpx.TransportError:
+            logger.exception(
+                "gateway unreachable, re-enqueueing %s events",
+                len(batch.events),
+            )
+            for event in batch.events:
+                await queue.put(event)
+            return 0
+
     while True:
         try:
             event = await asyncio.wait_for(queue.get(), timeout=POLL_INTERVAL)
@@ -88,20 +102,24 @@ async def stream_events(queue: asyncio.Queue, config):
             batch = buffer.add(event)
             if batch:
                 # Batch full --> Sending batch
-                await streamer.send(batch)
-                total += len(batch.events)
+                total += await _send_or_requeue(batch)
 
         except TimeoutError:
             # Batch timeout --> Sending batch (whatever events are accumulated in batch till now)
             batch = buffer.flush_if_expired()
             if batch:
-                await streamer.send(batch)
-                total += len(batch.events)
+                total += await _send_or_requeue(batch)
 
     remaining = buffer.flush()
     if remaining:
-        await streamer.send(remaining)
-        total += len(remaining.events)
+        try:
+            await streamer.send(remaining)
+            total += len(remaining.events)
+        except httpx.TransportError:
+            logger.error(
+                "gateway unreachable on shutdown, dropping %s events",
+                len(remaining.events),
+            )
 
     await streamer.close()
     logger.info("streamer complete | total=%s", total)
