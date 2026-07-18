@@ -50,11 +50,11 @@ class HTTPStreamer:
             break
         else:
             logger.error(
-                "rate limit retries exhausted | batch_id=%s events=%s",
+                "rate limit retries exhausted, dropping batch | batch_id=%s events=%s",
                 batch.batch_id,
                 len(batch.events),
             )
-            response.raise_for_status()
+            return
         body = response.json()
         logger.info(
             "batch sent | size=%s request_id=%s",
