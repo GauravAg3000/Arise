@@ -4,12 +4,13 @@ from datetime import UTC, datetime, timezone
 from typing import Annotated
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Header, Request, status
+from fastapi import FastAPI, Header, HTTPException, Request, status
 from redis.asyncio import Redis
 from uuid_extensions import uuid7
 
 from gateway.schemas import IngestedBatch
 from gateway.stream import publish_batch
+from shared.constants import STREAM_KEY
 from shared.schemas import EventBatch
 from shared.settings import GatewaySettings
 
@@ -47,11 +48,28 @@ async def ingest_events(
     trace_id = traceparent.split("-")[1] if traceparent else None
     received_at = datetime.now(UTC)
 
+    queue_depth = await request.app.state.redis.xlen(STREAM_KEY)
+    if queue_depth >= settings.gateway_max_queue:
+        excess = queue_depth - int(settings.gateway_max_queue * 0.8)
+        # Assuming Workers can process roughly 10000 messages per second
+        retry_after = min(30, max(5, excess // 10000 + 1))
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            headers={"Retry-After": str(retry_after)},
+            detail={
+                "error": "too_many_requests",
+                "queue_depth": queue_depth,
+                "max_queue": settings.gateway_max_queue,
+                "retry_after": retry_after,
+            },
+        )
+
     logger.info(
-        "received batch | batch_id=%s events=%s trace_id=%s",
+        "received batch | batch_id=%s events=%s trace_id=%s queue_depth=%s",
         batch.batch_id,
         len(batch.events),
         trace_id,
+        queue_depth,
     )
 
     await publish_batch(

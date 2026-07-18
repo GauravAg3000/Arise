@@ -30,12 +30,31 @@ class HTTPStreamer:
         traceparent = f"00-{trace_id}-{parent_id}-01"
 
         payload = batch.model_dump_json()
-        response = await self.client.post(
-            f"{GATEWAY_ENDPOINT}/api/v1/events/batch",
-            content=payload,
-            headers={"Content-Type": "application/json", "traceparent": traceparent},
-        )
-        response.raise_for_status()
+        for attempt in range(10):
+            response = await self.client.post(
+                f"{GATEWAY_ENDPOINT}/api/v1/events/batch",
+                content=payload,
+                headers={"Content-Type": "application/json", "traceparent": traceparent},
+            )
+            if response.status_code == 429:
+                retry_after = float(response.headers.get("Retry-After", 5))
+                logger.warning(
+                    "rate limited | batch_id=%s attempt=%s/10 retry_after=%ss",
+                    batch.batch_id,
+                    attempt + 1,
+                    retry_after,
+                )
+                await asyncio.sleep(retry_after)
+                continue
+            response.raise_for_status()
+            break
+        else:
+            logger.error(
+                "rate limit retries exhausted | batch_id=%s events=%s",
+                batch.batch_id,
+                len(batch.events),
+            )
+            response.raise_for_status()
         body = response.json()
         logger.info(
             "batch sent | size=%s request_id=%s",
